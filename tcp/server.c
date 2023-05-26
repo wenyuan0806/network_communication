@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <sys/wait.h>
 
 #define PORT 8888
 #define BUFSIZE 1024
@@ -14,7 +16,27 @@ int sockfd;
 int clientsockfd;
 /* ------------------------------------------ */
 
-int main(void)
+void sig_handler(int signo)
+{
+    if(signo == SIGINT)
+        printf("\n received SIGINT \n");
+    else if(signo == SIGTERM)
+        printf("\n received SIGTERM \n");
+    
+    close(sockfd);
+    exit(0);
+}
+
+void initSig(void)
+{
+    if(signal(SIGINT, sig_handler) == SIG_ERR)
+        printf("\n Can't catch SIGINT \n");
+    if(signal(SIGTERM, sig_handler) == SIG_ERR)
+        printf("\n Can't catch SIGTERM \n");
+    printf("\n Initialize signal handler \n");
+}
+
+void *socketThread(void *arg)
 {
     struct sockaddr_in server;
     struct sockaddr_in client;
@@ -65,6 +87,25 @@ int main(void)
             continue;
         }
         printf("\n client say: %s \n", buffer);
+    }
+}
+
+int main(void)
+{
+    pthread_t tid;
+
+    initSig();
+
+    if(pthread_create(&tid, NULL, socketThread, NULL))
+    {
+        printf("\n ERROR: Thread creation failed \n");
+        exit(1);
+    }
+    printf("\n Create the socketThread \n");
+
+    while(1)
+    {
+        ; // Do your things
     }
 
     return 0;
