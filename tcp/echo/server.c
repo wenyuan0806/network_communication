@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <netdb.h>
 #include <pthread.h>
 #include <sys/wait.h>
 
@@ -40,8 +39,7 @@ void *socketThread(void *arg)
 {
     struct sockaddr_in server;
     struct sockaddr_in client;
-
-    int client_len = sizeof(client);
+    socklen_t client_len = sizeof(client);
     char buffer[BUFSIZE];
     ssize_t len;
 
@@ -86,7 +84,15 @@ void *socketThread(void *arg)
             printf("\n ERROR: read() failed \n");
             continue;
         }
-        printf("\n client say: %s \n", buffer);
+        printf("\n Client says: %s \n", buffer);
+
+        /* memset(buffer, 0, BUFSIZE);
+        sprintf(buffer, "Server received: %s", buffer); */
+        if(write(clientsockfd, buffer, BUFSIZE) == -1)
+        {
+            printf("\n ERROR: write() failed \n");
+            continue;
+        }
     }
 }
 

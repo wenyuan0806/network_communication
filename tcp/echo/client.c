@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #define PORT 8888
-#define SERVERNAME "172.22.101.221"
+#define SERVERNAME "localhost"
 #define BUFSIZE 1024
 
 /* ------------- Global Variable ------------ */
@@ -43,6 +43,14 @@ int main(void)
         printf("\n ERROR: write() failed \n");
         exit(1);
     }
+
+    memset(buffer, 0, BUFSIZE);
+    if(read(sockfd, buffer, BUFSIZE) == -1)
+    {
+        printf("\n ERROR: read() failed \n");
+        exit(1);
+    }
+    printf("\n Echo from server: %s \n", buffer);
 
     close(sockfd);
 

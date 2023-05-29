@@ -1,10 +1,9 @@
-import sys
 import socket
 from ctypes import *
 
 # ------------- Global Variable ------------ #
 PORT = 8888
-SERVERNAME = '172.22.101.221'
+SERVERNAME = 'localhost'
 # ------------------------------------------ #
 
 def main():
@@ -17,6 +16,10 @@ def main():
 
         buffer = "Hello, I'm client."
         sockfd.send(buffer.encode())
+        print("Send '{}' to server".format(buffer))
+
+        buffer = sockfd.recv(1024).decode('utf-8')
+        print('\n Echo from server: {} \n'.format(buffer))
 
     except AttributeError as ae:
         print('\n ERROR: Socket creation failed: {} \n'.format(ae))
