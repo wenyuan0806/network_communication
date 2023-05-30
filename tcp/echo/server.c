@@ -42,6 +42,7 @@ void *socketThread(void *arg)
     socklen_t client_len = sizeof(client);
     char buffer[BUFSIZE];
     ssize_t len;
+    int reuse = 1;
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -49,6 +50,13 @@ void *socketThread(void *arg)
         exit(1);
     }
     printf("\n Socket created \n");
+
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+    {
+        perror("\n setsockopt() \n");
+        exit(1);
+    }
+    printf("\n Socket option set SO_REUSEADDR \n");
 
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
