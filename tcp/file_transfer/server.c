@@ -84,6 +84,7 @@ void *socketThread(void *arg)
     
     while(1)
     {
+        close(clientsockfd);
         if((clientsockfd = accept(sockfd, (struct sockaddr *)&client, &client_len)) < 0)
         {
             printf("\n");
@@ -93,13 +94,15 @@ void *socketThread(void *arg)
         }
 
         printf("\n Accepted connection from %s \n", inet_ntoa(client.sin_addr));
-    
+
         memset(DIRECTION, 0, sizeof(DIRECTION));
-        if(read(clientsockfd, DIRECTION, sizeof(DIRECTION)) == -1)
+        if(read(clientsockfd, DIRECTION, sizeof(DIRECTION)) <= 0)
         {
+            /* 
             printf("\n");
             perror(" read() 1");
-            printf("\n");
+            printf("\n"); 
+            */
             continue;
         }
 
@@ -128,48 +131,26 @@ void *socketThread(void *arg)
                     printf("\n");
                     perror(" fopen()");
                     printf("\n");
-                    continue;
+                    break;
                 }
 
                 memset(BUFFER, 0, BUFSIZE);
                 while(read(filefd, BUFFER, BUFSIZE))
                 {
-                    /* for(int i=0; i<BUFSIZE; i++)
-                        printf("%02x", BUFFER[i]);
-                    printf("\n\n"); */
-
                     if(write(clientsockfd, BUFFER, BUFSIZE) == -1)
                     {
                         printf("\n");
                         perror(" write()");
                         printf("\n");
-                        continue;
+                        break;
                     }
-
                     memset(BUFFER, 0, BUFSIZE);
                 }
 
-                /* while(fgets(BUFFER, BUFSIZE, file))
-                {
-                    for(int i=0; i<BUFSIZE; i++)
-                        printf("%x", BUFFER[i]);
-                    printf("\n\n");
-
-                    if(write(clientsockfd, BUFFER, BUFSIZE) == -1)
-                    {
-                        printf("\n");
-                        perror(" write()");
-                        printf("\n");
-                        continue;
-                    }
-                    memset(BUFFER, 0, BUFSIZE);
-                } */
-
                 printf("\n write finished \n");
-                shutdown(clientsockfd, SHUT_WR);
+
                 close(filefd);
                 fclose(file);
-                
                 break;
 
             case CLI_TO_SERV:
@@ -180,8 +161,7 @@ void *socketThread(void *arg)
                 printf("\n ERROR: The direction code that client sent is not exist. Please try 0x01(serv->cli) or 0x02(cli->serv) \n");
                 break;
         }
-
-        close(filefd);
+        close(clientsockfd);
     }
 }
 

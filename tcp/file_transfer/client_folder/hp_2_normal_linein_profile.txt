@@ -1,0 +1,8 @@
+amp:8
+thdn:55
+snr:65
+balance:3
+fft_size:512
+debug:1
+log:0
+volume(-dB):0

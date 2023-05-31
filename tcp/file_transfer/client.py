@@ -1,4 +1,6 @@
 import socket
+import time
+import binascii
 
 # ------------- Global Variable ------------ #
 PORT        = 8888
@@ -16,52 +18,88 @@ def createSocket():
     try:
         sockfd.connect(server)
         print('\n Connected to {:s} \n'.format(repr(server)))
+
     except Exception as e:
         print('\n {} \n'.format(e))
-
+    
     return sockfd
 
-def main():
-    packet = b''
-
+def getFileFromServer(SERV_FILEPATH, CLI_FILEPATH):
     sockfd = createSocket()
 
     try:
         sockfd.send(SERV_TO_CLI)
         print("\n Send [{}] to server \n".format(SERV_TO_CLI))
-
-        FILEPATH = '/home/usbaudio/network_communication/tcp/file_transfer/test.txt'
-        FILEPATH = '/home/usbaudio/rts3901_sdk_v1.1_turn-key/users/test/UACtest/sin480.wav'
-        FILEPATH = '/home/usbaudio/rts3901_sdk_v1.1_turn-key/users/test/UACtest/uactest.c'
-        FILEPATH = '/home/usbaudio/rts3901_sdk_v1.1_turn-key/users/test/UACtest/uactest'
-        FILEPATH = '/home/usbaudio/rts3901_sdk_v1.1_turn-key/rt_UAC_rw'
-        FILEPATH = '/home/usbaudio/rts3901_sdk_v1.1_turn-key/WAVE_48K_16bit_n6dB_60sec.wav'
         
-        sockfd.send(FILEPATH.encode())
-        print("\n Request [{}] file from server \n".format(FILEPATH))
+        sockfd.send(SERV_FILEPATH.encode())
+        print("\n Request [{}] file from server \n".format(SERV_FILEPATH))
 
-        file = open('test2', 'wb')
+        file = open(CLI_FILEPATH, 'wb')
 
         while True:
             packet = sockfd.recv(BUFSIZE)
             if(len(packet) == 0):
-                file.close()
                 break
             file.write(packet)
 
-        """ for index in range(-1, -BUFSIZE, -1):
-            if data[index] != 0:
-                fileData = data[:index+1]
-                break """
+    except Exception as e:
+        if 'timed out' in str(e):
+            pass
+        else:
+            print("\n {} \n".format(e))
 
-    except AttributeError as ae:
-        print('\n ERROR: Socket creation failed: {} \n'.format(ae))
+    sockfd.close()
+    file.close()
 
-    except socket.error as se:
-        print('\n ERROR: Exception on socket: {} \n'.format(se))
+def sendFileToServer(SERV_FILEPATH, CLI_FILEPATH):
+    sockfd = createSocket()
 
-    finally:
-        sockfd.close()
+    try:
+        sockfd.send(CLI_TO_SERV)
+        print("\n Send [{}] to server \n".format(CLI_TO_SERV))
+
+        sockfd.send(SERV_FILEPATH.encode())
+        print("\n Send [{}] file from server \n".format(SERV_FILEPATH))
+
+        file = open(CLI_FILEPATH, 'rb')
+
+        while True:
+            packet = file.read(BUFSIZE)
+            print(binascii.hexlify(packet))
+            if(len(packet) == 0):
+                break
+
+    except Exception as e:
+        if 'timed out' in str(e):
+            pass
+        else:
+            print("\n {} \n".format(e))
+    
+    sockfd.close()
+    file.close()
+
+def main():
+    SERV_FILEPATH   = '/home/usbaudio/network_communication/tcp/file_transfer/server_folder/WAVE_48K_16bit_n6dB_60sec.wav'
+    CLI_FILEPATH    = '/home/usbaudio/network_communication/tcp/file_transfer/client_folder/WAVE_48K_16bit_n6dB_60sec.wav'
+
+    getFileFromServer(SERV_FILEPATH, CLI_FILEPATH)
+
+    SERV_FILEPATH   = '/home/usbaudio/network_communication/tcp/file_transfer/server_folder/uactest.c'
+    CLI_FILEPATH    = '/home/usbaudio/network_communication/tcp/file_transfer/client_folder/uactest.c'
+
+    getFileFromServer(SERV_FILEPATH, CLI_FILEPATH) 
+   
+    
+    SERV_FILEPATH   = '/home/usbaudio/network_communication/tcp/file_transfer/server_folder/hp_2_normal_linein_profile.txt'
+    CLI_FILEPATH    = '/home/usbaudio/network_communication/tcp/file_transfer/client_folder/hp_2_normal_linein_profile.txt'
+    
+    sendFileToServer(SERV_FILEPATH, CLI_FILEPATH)
+
+    SERV_FILEPATH   = '/home/usbaudio/network_communication/tcp/file_transfer/server_folder/uactest'
+    CLI_FILEPATH    = '/home/usbaudio/network_communication/tcp/file_transfer/client_folder/uactest'
+
+    sendFileToServer(SERV_FILEPATH, CLI_FILEPATH)
+   
 
 if __name__ == "__main__":
     main()
