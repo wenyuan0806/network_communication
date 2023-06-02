@@ -9,7 +9,9 @@
 #include <fcntl.h>
 
 #define PORT 8888
-#define BUFSIZE 256
+#define BUFSIZE_1   1
+#define BUFSIZE_12  12
+#define BUFSIZE_256 256
 
 /* ------------- TCP File Transfer Direction ------------ */
 #define SERV_TO_CLI 0x01
@@ -49,19 +51,45 @@ void error(char *msg)
     exit(1);
 }
 
+long calFileSize(FILE *fp)
+{
+    // seek to end of file
+    if (fseek(fp, 0, SEEK_END) == -1) {
+        perror("fseek() SEEK_END");
+        return -1;
+    }
+
+    // get file size
+    long size = ftell(fp);
+    if (size == -1) {
+        perror("ftell error");
+        return -1;
+    }
+
+    // seek to end of file
+    if (fseek(fp, 0, SEEK_SET) == -1) {
+        perror("fseek() SEEK_SET");
+        return -1;
+    }
+
+    return size;
+}
+
 void *socketThread(void *arg)
 {
     struct sockaddr_in server;
     struct sockaddr_in client;
     socklen_t client_len = sizeof(client);
 
-    char DIRECTION[1];
-    char FILEPATH[BUFSIZE];
-    char BUFFER[BUFSIZE];
+    char DIRECTION[BUFSIZE_1];
+    char FILEPATH[BUFSIZE_256];
+    char FILESIZE[BUFSIZE_12];
+    char DATA[BUFSIZE_256];
 
     int reuse = 1;
     int filefd;
     FILE *file;
+    long fileSize = 0;
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         error(" socket()");
@@ -95,71 +123,138 @@ void *socketThread(void *arg)
 
         printf("\n Accepted connection from %s \n", inet_ntoa(client.sin_addr));
 
-        memset(DIRECTION, 0, sizeof(DIRECTION));
-        if(read(clientsockfd, DIRECTION, sizeof(DIRECTION)) <= 0)
+        while(1)
         {
-            /* 
-            printf("\n");
-            perror(" read() 1");
-            printf("\n"); 
-            */
-            continue;
-        }
+            printf("\n ======================================== \n");
+            memset(DIRECTION, 0, BUFSIZE_1);
+            if(read(clientsockfd, DIRECTION, BUFSIZE_1) <= 0)
+            {
+                /* 
+                printf("\n");
+                perror(" read() 1");
+                printf("\n"); 
+                */
+                break;
+            }
 
-        printf("\n Client says: 0x%02x \n", DIRECTION[0]);
+            /* if (DIRECTION[0] == 0x00)
+                continue; */
+            printf("\n Client says: 0x%02x \n", DIRECTION[0]);
 
-        memset(FILEPATH, 0, BUFSIZE);
-        if(read(clientsockfd, FILEPATH, BUFSIZE) == -1)
-        {
-            printf("\n");
-            perror(" read() 2");
-            printf("\n");
-            continue;
-        }
+            memset(FILEPATH, 0, BUFSIZE_256);
+            if(read(clientsockfd, FILEPATH, BUFSIZE_256) == -1)
+            {
+                printf("\n");
+                perror(" read() 2");
+                printf("\n");
+                break;
+            }
 
-        printf("\n Client says: %s \n", FILEPATH);
+            printf("\n Client says: %s \n", FILEPATH);
 
-        switch(DIRECTION[0])
-        {
-            case SERV_TO_CLI:
-                printf("\n Client request a file in [%s] \n", FILEPATH);
+            memset(FILESIZE, 0, BUFSIZE_12);
+            switch(DIRECTION[0])
+            {
+                case SERV_TO_CLI:
+                    printf("\n Client request a file in [%s] \n", FILEPATH);
 
-                file = fopen(FILEPATH, "rb");
-                filefd = fileno(file);
-                if(!file)
-                {
-                    printf("\n");
-                    perror(" fopen()");
-                    printf("\n");
-                    break;
-                }
+                    file = fopen(FILEPATH, "rb");
+                    filefd = fileno(file);
+                    if(!file)
+                    {
+                        printf("\n");
+                        perror(" fopen()");
+                        printf("\n");
+                        break;
+                    }
 
-                memset(BUFFER, 0, BUFSIZE);
-                while(read(filefd, BUFFER, BUFSIZE))
-                {
-                    if(write(clientsockfd, BUFFER, BUFSIZE) == -1)
+                    memset(FILESIZE, 0, BUFSIZE_12);
+                    fileSize = calFileSize(file);
+                    sprintf(FILESIZE, "%ld", fileSize);
+                    if(write(clientsockfd, FILESIZE, BUFSIZE_12) == -1)
                     {
                         printf("\n");
                         perror(" write()");
                         printf("\n");
                         break;
                     }
-                    memset(BUFFER, 0, BUFSIZE);
-                }
 
-                printf("\n write finished \n");
+                    memset(DATA, 0, BUFSIZE_256);
+                    while(read(filefd, DATA, BUFSIZE_256))
+                    {
+                        if(write(clientsockfd, DATA, BUFSIZE_256) == -1)
+                        {
+                            printf("\n");
+                            perror(" write()");
+                            printf("\n");
+                            break;
+                        }
+                        memset(DATA, 0, BUFSIZE_256);
+                    }
 
-                close(filefd);
-                fclose(file);
-                break;
+                    printf("\n write finished \n");
 
-            case CLI_TO_SERV:
-                printf("\n Client will send file to [%s] \n", FILEPATH);
-                break;
+                    break;
 
-            default:
-                printf("\n ERROR: The direction code that client sent is not exist. Please try 0x01(serv->cli) or 0x02(cli->serv) \n");
-                break;
+                case CLI_TO_SERV:
+                    printf("\n Client will send file to [%s] \n", FILEPATH);
+
+                    file = fopen(FILEPATH, "wb");
+                    filefd = fileno(file);
+                    if(!file)
+                    {
+                        printf("\n");
+                        perror(" fopen()");
+                        printf("\n");
+                        break;
+                    }
+
+                    if(read(clientsockfd, FILESIZE, BUFSIZE_12) == -1)
+                    {
+                        printf("\n");
+                        perror(" read()");
+                        printf("\n");
+                        break;
+                    }
+                    fileSize = atoi(FILESIZE);
+                    printf("\n File size is totally %lu bytes \n", fileSize);
+
+                    memset(DATA, 0, BUFSIZE_256);
+                    while(1)
+                    {
+                        if(read(clientsockfd, DATA, BUFSIZE_256) == -1)
+                        {
+                            printf("\n");
+                            perror(" read()");
+                            printf("\n");
+                            break;
+                        }
+                        /* for(int i=0; i<BUFSIZE_256; i++)
+                        {
+                            printf("%02x ", DATA[i]);
+                        }
+                        printf("\n"); */
+                        
+                        fileSize -= BUFSIZE_256;
+                        if(fileSize < 0)
+                        {
+                            write(filefd, DATA, fileSize+BUFSIZE_256);
+                            break;
+                        }
+                        write(filefd, DATA, BUFSIZE_256);
+                        memset(DATA, 0, BUFSIZE_256);
+                    }
+
+                    printf("\n read finished \n");
+
+                    break;
+
+                default:
+                    printf("\n ERROR: The direction code that client sent is not exist. Please try 0x01(serv->cli) or 0x02(cli->serv) \n");
+                    break;
+            }
+            close(filefd);
+            fclose(file);
         }
         close(clientsockfd);
     }

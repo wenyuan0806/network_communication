@@ -2575,6 +2575,37 @@ int main(int argc, char **argv)
 
     while (1)
     {
+        long size = 3047483647u;
+        printf("\n %ld \n", sizeof(size));
+        printf("\n %lu \n", size);
+
+        FILE *fp;
+        fp = fopen("/tmp/rt_UAC_rw", "rb");
+        if(!fp)
+        {
+            printf("\n");
+            perror(" fopen()");
+            printf("\n");
+            break;
+        }
+
+        // seek to end of file
+        if (fseek(fp, 0, SEEK_END) == -1) {
+            perror("fseek() SEEK_END");
+        }
+
+        // get file size
+        size = ftell(fp);
+        if (size == -1) {
+            perror("ftell error");
+        }
+
+        // seek to end of file
+        if (fseek(fp, 0, SEEK_SET) == -1) {
+            perror("fseek() SEEK_SET");
+        }
+        printf("\n %lu \n", size);
+
         result = PASS;
         testItem = detectStar(); // Detect the test command from FT Machine (V50 or S100)
         
@@ -2585,6 +2616,7 @@ int main(int argc, char **argv)
             printf("\n No RTK uac device exist \n");
             goto sendPassFail;
         }
+
 
         switch (testItem)
         {
